@@ -1,17 +1,17 @@
 # Use official Java 17 image
 FROM eclipse-temurin:17-jdk-alpine
 
+# Install Maven
+RUN apk add --no-cache maven bash
+
 # Set working directory
 WORKDIR /app
 
 # Copy project files
 COPY . .
 
-# Make Maven wrapper executable
-RUN chmod +x mvnw
-
 # Build the project (skip tests)
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests
 
 # Expose the port your Spring Boot app runs on
 EXPOSE 8080
