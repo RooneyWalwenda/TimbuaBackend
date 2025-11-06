@@ -11,6 +11,6 @@ import java.util.Optional;
 public interface SupplierRepository extends JpaRepository<Supplier, Long> {
     boolean existsByEmail(String email);
     boolean existsByBusinessRegistrationNumber(String businessRegistrationNumber);
-    Optional<Supplier> findByEmail(String email);
+    Optional<Supplier> findByEmail(String email); // Make sure this exists
     List<Supplier> findByIsVerifiedTrue();
 }

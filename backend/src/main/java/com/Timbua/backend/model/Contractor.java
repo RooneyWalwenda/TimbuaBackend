@@ -1,5 +1,6 @@
 package com.Timbua.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDate;
@@ -42,6 +43,10 @@ public class Contractor {
     @Enumerated(EnumType.STRING)
     private Status status = Status.PENDING;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.CONTRACTOR; // Added role field
+
     private Boolean isVerified = false;
 
     private LocalDateTime registrationDate;
@@ -69,9 +74,16 @@ public class Contractor {
         SUSPENDED
     }
 
+    public enum Role {
+        CONTRACTOR,
+        SUPPLIER,
+        ADMIN
+    }
+
     // Constructors
     public Contractor() {
         this.registrationDate = LocalDateTime.now();
+        this.role = Role.CONTRACTOR;
     }
 
     public Contractor(String companyName, String email, String password, String contactPerson) {
@@ -80,6 +92,7 @@ public class Contractor {
         this.password = password;
         this.contactPerson = contactPerson;
         this.registrationDate = LocalDateTime.now();
+        this.role = Role.CONTRACTOR;
     }
 
     // Getters and Setters
@@ -118,6 +131,9 @@ public class Contractor {
 
     public Status getStatus() { return status; }
     public void setStatus(Status status) { this.status = status; }
+
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 
     public Boolean getIsVerified() { return isVerified; }
     public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }

@@ -1,6 +1,6 @@
 package com.Timbua.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore; // ADD THIS IMPORT
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -34,6 +34,8 @@ public class Supplier {
     @Column(nullable = false)
     private String email;
 
+    private String password; // Added password field
+
     private String phone;
     private String website;
     private String description;
@@ -42,6 +44,10 @@ public class Supplier {
 
     @Enumerated(EnumType.STRING)
     private Status status = Status.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.SUPPLIER; // Added role field
 
     @Column(name = "is_verified")
     private boolean isVerified = false;
@@ -55,13 +61,23 @@ public class Supplier {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore // ADD THIS ANNOTATION HERE
+    @JsonIgnore
     private List<Material> materials = new ArrayList<>();
 
-    public enum Status { PENDING, VERIFIED, SUSPENDED, REJECTED }
+    public enum Status {
+        PENDING,
+        VERIFIED,
+        SUSPENDED,
+        REJECTED
+    }
+
+    public enum Role {
+        CONTRACTOR,
+        SUPPLIER,
+        ADMIN
+    }
 
     // Getters and setters
-
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -76,6 +92,9 @@ public class Supplier {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
@@ -94,6 +113,9 @@ public class Supplier {
 
     public Status getStatus() { return status; }
     public void setStatus(Status status) { this.status = status; }
+
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 
     public boolean isVerified() { return isVerified; }
     public void setVerified(boolean verified) { isVerified = verified; }
