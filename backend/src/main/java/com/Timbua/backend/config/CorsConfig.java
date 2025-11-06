@@ -19,7 +19,8 @@ public class CorsConfig implements WebMvcConfigurer {
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "https://timbua-mvp-wdba.vercel.app",
                 "http://localhost:4200",
-                "http://localhost:8080" // Add your backend origin for Swagger
+                "http://localhost:8080" 
+            "https://timbuabackend.onrender.com"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
