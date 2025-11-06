@@ -1,5 +1,6 @@
 package com.Timbua.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.List;
@@ -27,7 +28,12 @@ public class ConstructionSite {
     private LocalDate startDate;
     private LocalDate endDate;
     private Double progress;
-    private Long contractorId;
+
+    // Updated: Replace contractorId with proper relationship
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contractor_id")
+    @JsonIgnoreProperties({"constructionSites", "documents", "quotationRequests"})
+    private Contractor contractor;
 
     @ElementCollection
     @CollectionTable(name = "construction_documents", joinColumns = @JoinColumn(name = "site_id"))
@@ -71,8 +77,19 @@ public class ConstructionSite {
     public Double getProgress() { return progress; }
     public void setProgress(Double progress) { this.progress = progress; }
 
-    public Long getContractorId() { return contractorId; }
-    public void setContractorId(Long contractorId) { this.contractorId = contractorId; }
+    // Updated: Contractor relationship getter and setter
+    public Contractor getContractor() { return contractor; }
+    public void setContractor(Contractor contractor) { this.contractor = contractor; }
+
+    // Keep backward compatibility for contractorId
+    public Long getContractorId() {
+        return contractor != null ? contractor.getId() : null;
+    }
+
+    public void setContractorId(Long contractorId) {
+        // This method is kept for backward compatibility but won't set the relationship
+        // Use setContractor() instead for proper relationship setting
+    }
 
     public List<String> getDocuments() { return documents; }
     public void setDocuments(List<String> documents) { this.documents = documents; }

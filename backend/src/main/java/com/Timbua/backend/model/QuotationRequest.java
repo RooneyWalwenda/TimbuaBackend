@@ -14,7 +14,12 @@ public class QuotationRequest {
 
     private Long materialId;       // Material requested
     private Long supplierId;       // Supplier who owns the material
-    private Long contractorId;     // Contractor making the request
+
+    // Updated: Replace contractorId with proper relationship
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contractor_id")
+    private Contractor contractor;
+
     private Long siteId;           // Site where materials are needed
 
     private String material;
@@ -45,8 +50,19 @@ public class QuotationRequest {
     public Long getSupplierId() { return supplierId; }
     public void setSupplierId(Long supplierId) { this.supplierId = supplierId; }
 
-    public Long getContractorId() { return contractorId; }
-    public void setContractorId(Long contractorId) { this.contractorId = contractorId; }
+    // Updated: Contractor relationship getter and setter
+    public Contractor getContractor() { return contractor; }
+    public void setContractor(Contractor contractor) { this.contractor = contractor; }
+
+    // Keep backward compatibility for contractorId
+    public Long getContractorId() {
+        return contractor != null ? contractor.getId() : null;
+    }
+
+    public void setContractorId(Long contractorId) {
+        // This method is kept for backward compatibility but won't set the relationship
+        // Use setContractor() instead for proper relationship setting
+    }
 
     public Long getSiteId() { return siteId; }
     public void setSiteId(Long siteId) { this.siteId = siteId; }
