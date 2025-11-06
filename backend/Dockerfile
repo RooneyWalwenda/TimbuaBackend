@@ -7,8 +7,8 @@ RUN apk add --no-cache maven bash
 # Set working directory
 WORKDIR /app
 
-# Copy project files
-COPY . .
+# Copy the backend folder content into /app
+COPY backend/ .
 
 # Build the project (skip tests)
 RUN mvn clean package -DskipTests
