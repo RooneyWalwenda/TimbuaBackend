@@ -18,3 +18,4 @@ EXPOSE 8080
 
 # Run the JAR generated in the target folder
 CMD ["java", "-jar", "target/backend-0.0.1-SNAPSHOT.jar"]
+
