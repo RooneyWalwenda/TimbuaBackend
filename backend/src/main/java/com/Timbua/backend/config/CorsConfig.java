@@ -19,6 +19,7 @@ public class CorsConfig implements WebMvcConfigurer {
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "https://timbua-mvp-wdba.vercel.app",
                 "http://localhost:4200",
+            "https://timbua-portal.vercel.app/",
                 "http://localhost:8080",
             "https://timbuabackend.onrender.com"
         ));
