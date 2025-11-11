@@ -101,6 +101,31 @@ public class MaterialSiteController {
         return ResponseEntity.ok(materialSites);
     }
 
+    @Operation(summary = "Search by county", description = "Find material sites by county name")
+    @GetMapping("/search/county")
+    public ResponseEntity<List<MaterialSite>> getMaterialSitesByCounty(
+            @Parameter(description = "County to search for") @RequestParam String county) {
+        List<MaterialSite> materialSites = materialSiteService.getMaterialSitesByCounty(county);
+        return ResponseEntity.ok(materialSites);
+    }
+
+    @Operation(summary = "Search by sub-county", description = "Find material sites by sub-county name")
+    @GetMapping("/search/sub-county")
+    public ResponseEntity<List<MaterialSite>> getMaterialSitesBySubCounty(
+            @Parameter(description = "Sub-county to search for") @RequestParam String subCounty) {
+        List<MaterialSite> materialSites = materialSiteService.getMaterialSitesBySubCounty(subCounty);
+        return ResponseEntity.ok(materialSites);
+    }
+
+    @Operation(summary = "Search by county and sub-county", description = "Find material sites by both county and sub-county")
+    @GetMapping("/search/county-sub-county")
+    public ResponseEntity<List<MaterialSite>> getMaterialSitesByCountyAndSubCounty(
+            @Parameter(description = "County to search for") @RequestParam String county,
+            @Parameter(description = "Sub-county to search for") @RequestParam String subCounty) {
+        List<MaterialSite> materialSites = materialSiteService.getMaterialSitesByCountyAndSubCounty(county, subCounty);
+        return ResponseEntity.ok(materialSites);
+    }
+
     @Operation(summary = "Get all material types", description = "Retrieve a list of all distinct material types available")
     @GetMapping("/materials")
     public ResponseEntity<List<String>> getDistinctMaterials() {
@@ -113,5 +138,27 @@ public class MaterialSiteController {
     public ResponseEntity<List<String>> getDistinctLocations() {
         List<String> locations = materialSiteService.getDistinctLocations();
         return ResponseEntity.ok(locations);
+    }
+
+    @Operation(summary = "Get all counties", description = "Retrieve a list of all distinct counties")
+    @GetMapping("/counties")
+    public ResponseEntity<List<String>> getDistinctCounties() {
+        List<String> counties = materialSiteService.getDistinctCounties();
+        return ResponseEntity.ok(counties);
+    }
+
+    @Operation(summary = "Get all sub-counties", description = "Retrieve a list of all distinct sub-counties")
+    @GetMapping("/sub-counties")
+    public ResponseEntity<List<String>> getDistinctSubCounties() {
+        List<String> subCounties = materialSiteService.getDistinctSubCounties();
+        return ResponseEntity.ok(subCounties);
+    }
+
+    @Operation(summary = "Get sub-counties by county", description = "Retrieve a list of sub-counties for a specific county")
+    @GetMapping("/sub-counties/by-county")
+    public ResponseEntity<List<String>> getSubCountiesByCounty(
+            @Parameter(description = "County to get sub-counties for") @RequestParam String county) {
+        List<String> subCounties = materialSiteService.getSubCountiesByCounty(county);
+        return ResponseEntity.ok(subCounties);
     }
 }
