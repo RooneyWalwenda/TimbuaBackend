@@ -53,4 +53,29 @@ public class MaterialSiteService {
     public List<String> getDistinctLocations() {
         return materialSiteRepository.findDistinctLocations();
     }
+
+    // New methods for county and sub-county queries
+    public List<MaterialSite> getMaterialSitesByCounty(String county) {
+        return materialSiteRepository.findByCountyContainingIgnoreCase(county);
+    }
+
+    public List<MaterialSite> getMaterialSitesBySubCounty(String subCounty) {
+        return materialSiteRepository.findBySubCountyContainingIgnoreCase(subCounty);
+    }
+
+    public List<MaterialSite> getMaterialSitesByCountyAndSubCounty(String county, String subCounty) {
+        return materialSiteRepository.findByCountyAndSubCountyContainingIgnoreCase(county, subCounty);
+    }
+
+    public List<String> getDistinctCounties() {
+        return materialSiteRepository.findDistinctCounties();
+    }
+
+    public List<String> getDistinctSubCounties() {
+        return materialSiteRepository.findDistinctSubCounties();
+    }
+
+    public List<String> getSubCountiesByCounty(String county) {
+        return materialSiteRepository.findSubCountiesByCounty(county);
+    }
 }
