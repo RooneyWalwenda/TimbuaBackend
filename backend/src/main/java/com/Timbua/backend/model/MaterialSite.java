@@ -55,15 +55,22 @@ public class MaterialSite {
     @Column(name = "comments", length = 1000)
     private String comments;
 
-    // Constructors
+    @Column(name = "county")
+    private String county;
+
+    @Column(name = "sub_county")
+    private String subCounty;
+
+    // Default constructor
     public MaterialSite() {}
 
+    // Updated constructor with county and subCounty at the END (to match your DataLoader)
     public MaterialSite(Integer questionnaireNo, String researchAssistantNo, String material,
                         String materialLocation, BigDecimal latitude, BigDecimal longitude,
                         String materialUsedIn, String sizeOfManufacturingIndustry,
                         String periodOfManufacture, String ownerOfMaterial, String materialUsage,
                         String numberOfPeopleEmployed, String similarLocations,
-                        String volumeProducedPerDay, String comments) {
+                        String volumeProducedPerDay, String comments, String county, String subCounty) {
         this.questionnaireNo = questionnaireNo;
         this.researchAssistantNo = researchAssistantNo;
         this.material = material;
@@ -79,7 +86,25 @@ public class MaterialSite {
         this.similarLocations = similarLocations;
         this.volumeProducedPerDay = volumeProducedPerDay;
         this.comments = comments;
+        this.county = county;
+        this.subCounty = subCounty;
     }
+
+    // Old constructor for backward compatibility (without county/subCounty)
+    public MaterialSite(Integer questionnaireNo, String researchAssistantNo, String material,
+                        String materialLocation, BigDecimal latitude, BigDecimal longitude,
+                        String materialUsedIn, String sizeOfManufacturingIndustry,
+                        String periodOfManufacture, String ownerOfMaterial, String materialUsage,
+                        String numberOfPeopleEmployed, String similarLocations,
+                        String volumeProducedPerDay, String comments) {
+        this(questionnaireNo, researchAssistantNo, material, materialLocation, latitude, longitude,
+                materialUsedIn, sizeOfManufacturingIndustry, periodOfManufacture, ownerOfMaterial,
+                materialUsage, numberOfPeopleEmployed, similarLocations, volumeProducedPerDay,
+                comments, null, null);
+    }
+
+    // Remove this incorrect constructor as it's causing issues
+    // public MaterialSite(int questionnaireNo, String researchAssistantNo, String blocks, String materialLocation, BigDecimal bigDecimal, BigDecimal bigDecimal1, String inTheCounty, String smallIndustry, String materialUsedIn, String community, String periodOfManufacture, String ownerOfMaterial, Object materialUsage, String numberOfPeopleEmployed, String areaIsOwnedByCommunity, String mombasa, String kisauni) {}
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -129,4 +154,10 @@ public class MaterialSite {
 
     public String getComments() { return comments; }
     public void setComments(String comments) { this.comments = comments; }
+
+    public String getCounty() { return county; }
+    public void setCounty(String county) { this.county = county; }
+
+    public String getSubCounty() { return subCounty; }
+    public void setSubCounty(String subCounty) { this.subCounty = subCounty; }
 }
