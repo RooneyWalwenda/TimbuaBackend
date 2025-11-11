@@ -21,4 +21,20 @@ public interface MaterialSiteRepository extends JpaRepository<MaterialSite, Long
 
     @Query("SELECT DISTINCT ms.materialLocation FROM MaterialSite ms")
     List<String> findDistinctLocations();
+
+    // New methods for county and sub-county queries
+    List<MaterialSite> findByCountyContainingIgnoreCase(String county);
+
+    List<MaterialSite> findBySubCountyContainingIgnoreCase(String subCounty);
+
+    List<MaterialSite> findByCountyAndSubCountyContainingIgnoreCase(String county, String subCounty);
+
+    @Query("SELECT DISTINCT ms.county FROM MaterialSite ms WHERE ms.county IS NOT NULL ORDER BY ms.county")
+    List<String> findDistinctCounties();
+
+    @Query("SELECT DISTINCT ms.subCounty FROM MaterialSite ms WHERE ms.subCounty IS NOT NULL ORDER BY ms.subCounty")
+    List<String> findDistinctSubCounties();
+
+    @Query("SELECT DISTINCT ms.subCounty FROM MaterialSite ms WHERE ms.county = :county AND ms.subCounty IS NOT NULL ORDER BY ms.subCounty")
+    List<String> findSubCountiesByCounty(String county);
 }
