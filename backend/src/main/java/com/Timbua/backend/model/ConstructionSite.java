@@ -29,8 +29,8 @@ public class ConstructionSite {
     private LocalDate endDate;
     private Double progress;
 
-    // Updated: Replace contractorId with proper relationship
-    @ManyToOne(fetch = FetchType.LAZY)
+    // FIXED: Changed to EAGER fetching and removed contractorId field
+    @ManyToOne(fetch = FetchType.EAGER) // Changed from LAZY to EAGER
     @JoinColumn(name = "contractor_id")
     @JsonIgnoreProperties({"constructionSites", "documents", "quotationRequests"})
     private Contractor contractor;
@@ -77,19 +77,17 @@ public class ConstructionSite {
     public Double getProgress() { return progress; }
     public void setProgress(Double progress) { this.progress = progress; }
 
-    // Updated: Contractor relationship getter and setter
+    // FIXED: Proper contractor relationship
     public Contractor getContractor() { return contractor; }
     public void setContractor(Contractor contractor) { this.contractor = contractor; }
 
-    // Keep backward compatibility for contractorId
+    // FIXED: Proper contractorId getter that works with JSON serialization
     public Long getContractorId() {
         return contractor != null ? contractor.getId() : null;
     }
 
-    public void setContractorId(Long contractorId) {
-        // This method is kept for backward compatibility but won't set the relationship
-        // Use setContractor() instead for proper relationship setting
-    }
+    // FIXED: Remove setContractorId to avoid confusion
+    // Don't include setContractorId method - use setContractor() instead
 
     public List<String> getDocuments() { return documents; }
     public void setDocuments(List<String> documents) { this.documents = documents; }
