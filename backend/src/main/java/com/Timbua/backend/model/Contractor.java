@@ -45,7 +45,7 @@ public class Contractor {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role = Role.CONTRACTOR; // Added role field
+    private Role role = Role.CONTRACTOR;
 
     private Boolean isVerified = false;
 
@@ -53,17 +53,17 @@ public class Contractor {
 
     private LocalDate verificationDate;
 
-    // Relationships
-    @OneToMany(mappedBy = "contractor", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnoreProperties("contractor")
+    // Relationships - FIXED: Added fetch type and JsonIgnore for circular references
+    @OneToMany(mappedBy = "contractor", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore // Added to prevent circular serialization
     private List<ContractorDocument> documents = new ArrayList<>();
 
-    @OneToMany(mappedBy = "contractor")
-    @JsonIgnoreProperties("contractor")
+    @OneToMany(mappedBy = "contractor", fetch = FetchType.LAZY)
+    @JsonIgnore // Added to prevent circular serialization
     private List<ConstructionSite> constructionSites;
 
-    @OneToMany(mappedBy = "contractor")
-    @JsonIgnoreProperties("contractor")
+    @OneToMany(mappedBy = "contractor", fetch = FetchType.LAZY)
+    @JsonIgnore // Added to prevent circular serialization
     private List<QuotationRequest> quotationRequests;
 
     public enum Status {
@@ -95,7 +95,7 @@ public class Contractor {
         this.role = Role.CONTRACTOR;
     }
 
-    // Getters and Setters
+    // Getters and Setters (same as before)
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
