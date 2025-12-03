@@ -1,5 +1,7 @@
 package com.Timbua.backend.controller;
 
+import com.Timbua.backend.dto.ContractorRequestDTO;
+import com.Timbua.backend.dto.ContractorResponseDTO;
 import com.Timbua.backend.model.Contractor;
 import com.Timbua.backend.model.ContractorDocument;
 import com.Timbua.backend.service.ContractorService;
@@ -25,8 +27,8 @@ public class ContractorController {
     // === Public Registration ===
     @PostMapping("/register")
     @Operation(summary = "Register a new contractor", description = "Self-registration for contractors")
-    public ResponseEntity<Contractor> registerContractor(@RequestBody Contractor contractor) {
-        return ResponseEntity.ok(contractorService.registerContractor(contractor));
+    public ResponseEntity<ContractorResponseDTO> registerContractor(@RequestBody ContractorRequestDTO contractorRequest) {
+        return ResponseEntity.ok(contractorService.registerContractor(contractorRequest));
     }
 
     // === Document Upload ===
@@ -41,10 +43,11 @@ public class ContractorController {
     // === Admin Endpoints ===
     @PutMapping("/{id}/verify")
     @Operation(summary = "Verify contractor", description = "Admin verification of contractor")
-    public ResponseEntity<Contractor> verifyContractor(
+    public ResponseEntity<ContractorResponseDTO> verifyContractor(
             @PathVariable Long id,
-            @RequestParam boolean approved) {
-        return ResponseEntity.ok(contractorService.verifyContractor(id, approved, ""));
+            @RequestParam boolean approved,
+            @RequestParam(required = false) String remarks) {
+        return ResponseEntity.ok(contractorService.verifyContractor(id, approved, remarks != null ? remarks : ""));
     }
 
     @PutMapping("/documents/{documentId}/status")
@@ -58,25 +61,25 @@ public class ContractorController {
     // === Standard CRUD ===
     @GetMapping
     @Operation(summary = "Get all contractors", description = "Get list of all contractors")
-    public ResponseEntity<List<Contractor>> getAllContractors() {
+    public ResponseEntity<List<ContractorResponseDTO>> getAllContractors() {
         return ResponseEntity.ok(contractorService.getAllContractors());
     }
 
     @GetMapping("/status/{status}")
     @Operation(summary = "Get contractors by status", description = "Get contractors filtered by verification status")
-    public ResponseEntity<List<Contractor>> getContractorsByStatus(@PathVariable Contractor.Status status) {
+    public ResponseEntity<List<ContractorResponseDTO>> getContractorsByStatus(@PathVariable Contractor.Status status) {
         return ResponseEntity.ok(contractorService.getContractorsByStatus(status));
     }
 
     @GetMapping("/verified")
     @Operation(summary = "Get verified contractors", description = "Get list of verified contractors only")
-    public ResponseEntity<List<Contractor>> getVerifiedContractors() {
+    public ResponseEntity<List<ContractorResponseDTO>> getVerifiedContractors() {
         return ResponseEntity.ok(contractorService.getVerifiedContractors());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get contractor by ID", description = "Get contractor details by ID")
-    public ResponseEntity<Contractor> getContractorById(@PathVariable Long id) {
+    public ResponseEntity<ContractorResponseDTO> getContractorById(@PathVariable Long id) {
         return contractorService.getContractorById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -90,8 +93,8 @@ public class ContractorController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update contractor", description = "Update contractor information")
-    public ResponseEntity<Contractor> updateContractor(@PathVariable Long id, @RequestBody Contractor contractor) {
-        return ResponseEntity.ok(contractorService.updateContractor(id, contractor));
+    public ResponseEntity<ContractorResponseDTO> updateContractor(@PathVariable Long id, @RequestBody ContractorRequestDTO contractorRequest) {
+        return ResponseEntity.ok(contractorService.updateContractor(id, contractorRequest));
     }
 
     @DeleteMapping("/{id}")
