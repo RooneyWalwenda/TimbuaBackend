@@ -1,7 +1,5 @@
 package com.Timbua.backend.dto;
 
-import com.Timbua.backend.model.Contractor;
-import com.Timbua.backend.model.Supplier;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "Login response with user details and role for authentication")
@@ -20,10 +18,10 @@ public class AuthLoginResponse {
     private String token;
 
     @Schema(description = "Contractor details (if contractor)")
-    private Contractor contractor;
+    private ContractorResponseDTO contractor;
 
     @Schema(description = "Supplier details (if supplier)")
-    private Supplier supplier;
+    private SupplierResponseDTO supplier;
 
     // Constructors
     public AuthLoginResponse() {}
@@ -47,9 +45,9 @@ public class AuthLoginResponse {
     public String getToken() { return token; }
     public void setToken(String token) { this.token = token; }
 
-    public Contractor getContractor() { return contractor; }
-    public void setContractor(Contractor contractor) { this.contractor = contractor; }
+    public ContractorResponseDTO getContractor() { return contractor; }
+    public void setContractor(ContractorResponseDTO contractor) { this.contractor = contractor; }
 
-    public Supplier getSupplier() { return supplier; }
-    public void setSupplier(Supplier supplier) { this.supplier = supplier; }
+    public SupplierResponseDTO getSupplier() { return supplier; }
+    public void setSupplier(SupplierResponseDTO supplier) { this.supplier = supplier; }
 }
