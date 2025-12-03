@@ -167,29 +167,68 @@ public class AuthService {
                 supplierRepository.findByEmail(normalizedEmail).isPresent();
     }
 
+    // -----------------------------------------------------
+    // CONTRACTOR SUCCESS RESPONSE
+    // -----------------------------------------------------
     private AuthLoginResponse createSuccessResponse(Contractor contractor, String role, String message) {
         AuthLoginResponse response = new AuthLoginResponse();
         response.setSuccess(true);
         response.setMessage(message);
         response.setRole(role);
-        response.setContractor(contractor);
-        response.setSupplier(null);
 
-        contractor.setPassword(null);
+        Contractor sanitized = new Contractor();
+        sanitized.setId(contractor.getId());
+        sanitized.setCompanyName(contractor.getCompanyName());
+        sanitized.setEmail(contractor.getEmail());
+        sanitized.setContactPerson(contractor.getContactPerson());
+        sanitized.setPhoneNumber(contractor.getPhoneNumber());
+        sanitized.setBusinessRegistrationNumber(contractor.getBusinessRegistrationNumber());
+        sanitized.setPhysicalAddress(contractor.getPhysicalAddress());
+        sanitized.setSpecialization(contractor.getSpecialization());
+        sanitized.setYearsOfExperience(contractor.getYearsOfExperience());
+        sanitized.setLicenseNumber(contractor.getLicenseNumber());
+        sanitized.setStatus(contractor.getStatus());
+        sanitized.setRole(contractor.getRole());
+        sanitized.setIsVerified(contractor.getIsVerified());
+        sanitized.setRegistrationDate(contractor.getRegistrationDate());
+        sanitized.setVerificationDate(contractor.getVerificationDate());
+
+        response.setContractor(sanitized);
+        response.setSupplier(null);
         response.setToken(generateJwtToken(contractor.getEmail(), role));
 
         return response;
     }
 
+    // -----------------------------------------------------
+    // SUPPLIER SUCCESS RESPONSE
+    // -----------------------------------------------------
     private AuthLoginResponse createSuccessResponse(Supplier supplier, String role, String message) {
         AuthLoginResponse response = new AuthLoginResponse();
         response.setSuccess(true);
         response.setMessage(message);
         response.setRole(role);
-        response.setContractor(null);
-        response.setSupplier(supplier);
 
-        supplier.setPassword(null);
+        Supplier sanitized = new Supplier();
+        sanitized.setId(supplier.getId());
+        sanitized.setCompanyName(supplier.getCompanyName());
+        sanitized.setBusinessRegistrationNumber(supplier.getBusinessRegistrationNumber());
+        sanitized.setContactPerson(supplier.getContactPerson());
+        sanitized.setEmail(supplier.getEmail());
+        sanitized.setPhone(supplier.getPhone());
+        sanitized.setWebsite(supplier.getWebsite());
+        sanitized.setDescription(supplier.getDescription());
+        sanitized.setYearsInBusiness(supplier.getYearsInBusiness());
+        sanitized.setLogoUrl(supplier.getLogoUrl());
+        sanitized.setStatus(supplier.getStatus());
+        sanitized.setRole(supplier.getRole());
+        sanitized.setVerified(supplier.isVerified());
+        sanitized.setVerificationDate(supplier.getVerificationDate());
+        sanitized.setCreatedAt(supplier.getCreatedAt());
+        sanitized.setUpdatedAt(supplier.getUpdatedAt());
+
+        response.setSupplier(sanitized);
+        response.setContractor(null);
         response.setToken(generateJwtToken(supplier.getEmail(), role));
 
         return response;
