@@ -22,7 +22,8 @@ public class Contractor {
     @Column(nullable = false, unique = true)
     private String email;
 
-    private String password; // Will be encrypted
+    @JsonIgnore  // Never expose password in JSON
+    private String password;
 
     @Column(nullable = false)
     private String contactPerson;
@@ -45,7 +46,7 @@ public class Contractor {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role = Role.CONTRACTOR;
+    private Role role = Role.CONTRACTOR; // Added role field
 
     private Boolean isVerified = false;
 
@@ -53,17 +54,17 @@ public class Contractor {
 
     private LocalDate verificationDate;
 
-    // Relationships - FIXED: Added fetch type and JsonIgnore for circular references
-    @OneToMany(mappedBy = "contractor", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonIgnore // Added to prevent circular serialization
+    // Relationships
+    @OneToMany(mappedBy = "contractor", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("contractor")
     private List<ContractorDocument> documents = new ArrayList<>();
 
-    @OneToMany(mappedBy = "contractor", fetch = FetchType.LAZY)
-    @JsonIgnore // Added to prevent circular serialization
+    @OneToMany(mappedBy = "contractor")
+    @JsonIgnoreProperties("contractor")
     private List<ConstructionSite> constructionSites;
 
-    @OneToMany(mappedBy = "contractor", fetch = FetchType.LAZY)
-    @JsonIgnore // Added to prevent circular serialization
+    @OneToMany(mappedBy = "contractor")
+    @JsonIgnoreProperties({"contractor", "invitedSuppliers", "quotes"})  // Added to break cycle
     private List<QuotationRequest> quotationRequests;
 
     public enum Status {
@@ -95,7 +96,7 @@ public class Contractor {
         this.role = Role.CONTRACTOR;
     }
 
-    // Getters and Setters (same as before)
+    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
