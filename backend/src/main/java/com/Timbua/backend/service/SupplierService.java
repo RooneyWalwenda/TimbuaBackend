@@ -1,5 +1,7 @@
 package com.Timbua.backend.service;
 
+import com.Timbua.backend.dto.SupplierRequestDTO;
+import com.Timbua.backend.dto.SupplierResponseDTO;
 import com.Timbua.backend.model.Material;
 import com.Timbua.backend.model.Supplier;
 import com.Timbua.backend.model.SupplierDocument;
@@ -13,9 +15,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -42,53 +46,59 @@ public class SupplierService {
      * Basic supplier registration with password encryption and role assignment
      */
     @Transactional
-    public Supplier registerSupplier(Supplier supplier) {
-        logger.info("Registering new supplier with email: {}", supplier.getEmail());
+    public SupplierResponseDTO registerSupplier(SupplierRequestDTO requestDTO) {
+        logger.info("Registering new supplier with email: {}", requestDTO.getEmail());
 
         // Validate input
-        validateSupplierRegistration(supplier);
+        validateSupplierRegistration(requestDTO);
+
+        // Convert DTO to Entity
+        Supplier supplier = convertToEntity(requestDTO);
 
         // Encrypt password
-        supplier.setPassword(passwordEncoder.encode(supplier.getPassword()));
+        supplier.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
 
         // Set initial status and role
         supplier.setStatus(Supplier.Status.PENDING);
         supplier.setRole(Supplier.Role.SUPPLIER); // Set the role explicitly
         supplier.setVerified(false);
-        supplier.setCreatedAt(java.time.LocalDateTime.now());
+        supplier.setCreatedAt(LocalDateTime.now());
 
         Supplier savedSupplier = supplierRepository.save(supplier);
         logger.info("Supplier registered successfully with ID: {}", savedSupplier.getId());
 
-        return savedSupplier;
+        // Return DTO (without password)
+        return convertToDTO(savedSupplier);
     }
 
     /**
      * Complete supplier registration with materials catalog
      */
     @Transactional
-    public Supplier registerSupplierWithMaterials(Supplier supplier) {
-        logger.info("Registering supplier with materials, email: {}", supplier.getEmail());
+    public SupplierResponseDTO registerSupplierWithMaterials(SupplierRequestDTO requestDTO, List<Material> materials) {
+        logger.info("Registering supplier with materials, email: {}", requestDTO.getEmail());
 
         // Validate email and business registration number
-        validateSupplierRegistration(supplier);
+        validateSupplierRegistration(requestDTO);
 
         // Validate that at least one material is provided
-        if (supplier.getMaterials() == null || supplier.getMaterials().isEmpty()) {
+        if (materials == null || materials.isEmpty()) {
             throw new IllegalArgumentException("At least one material must be provided during registration");
         }
 
+        // Convert DTO to Entity
+        Supplier supplier = convertToEntity(requestDTO);
+
         // Encrypt password
-        supplier.setPassword(passwordEncoder.encode(supplier.getPassword()));
+        supplier.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
 
         // Set supplier status, verification and role
         supplier.setStatus(Supplier.Status.PENDING);
         supplier.setRole(Supplier.Role.SUPPLIER); // Set the role explicitly
         supplier.setVerified(false);
-        supplier.setCreatedAt(java.time.LocalDateTime.now());
+        supplier.setCreatedAt(LocalDateTime.now());
 
-        // Temporarily store the materials and clear them from supplier to avoid cascade issues
-        List<Material> materials = new ArrayList<>(supplier.getMaterials());
+        // Temporarily clear materials to avoid cascade issues
         supplier.setMaterials(new ArrayList<>());
 
         // Save supplier first to get the auto-generated ID
@@ -111,35 +121,36 @@ public class SupplierService {
 
         logger.info("Supplier registered successfully with {} materials, ID: {}",
                 savedMaterials.size(), savedSupplier.getId());
-        return savedSupplier;
+
+        return convertToDTO(savedSupplier);
     }
 
     /**
-     * Validate supplier registration data
+     * Validate supplier registration data from DTO
      */
-    private void validateSupplierRegistration(Supplier supplier) {
-        if (supplier.getEmail() == null || supplier.getEmail().trim().isEmpty()) {
+    private void validateSupplierRegistration(SupplierRequestDTO requestDTO) {
+        if (requestDTO.getEmail() == null || requestDTO.getEmail().trim().isEmpty()) {
             throw new IllegalArgumentException("Email is required");
         }
 
-        if (supplier.getPassword() == null || supplier.getPassword().trim().isEmpty()) {
+        if (requestDTO.getPassword() == null || requestDTO.getPassword().trim().isEmpty()) {
             throw new IllegalArgumentException("Password is required");
         }
 
-        if (supplier.getCompanyName() == null || supplier.getCompanyName().trim().isEmpty()) {
+        if (requestDTO.getCompanyName() == null || requestDTO.getCompanyName().trim().isEmpty()) {
             throw new IllegalArgumentException("Company name is required");
         }
 
-        if (supplier.getBusinessRegistrationNumber() == null || supplier.getBusinessRegistrationNumber().trim().isEmpty()) {
+        if (requestDTO.getBusinessRegistrationNumber() == null || requestDTO.getBusinessRegistrationNumber().trim().isEmpty()) {
             throw new IllegalArgumentException("Business registration number is required");
         }
 
         // Check uniqueness
-        if (supplierRepository.existsByEmail(supplier.getEmail().trim().toLowerCase())) {
+        if (supplierRepository.existsByEmail(requestDTO.getEmail().trim().toLowerCase())) {
             throw new IllegalArgumentException("Supplier with this email already exists");
         }
 
-        if (supplierRepository.existsByBusinessRegistrationNumber(supplier.getBusinessRegistrationNumber())) {
+        if (supplierRepository.existsByBusinessRegistrationNumber(requestDTO.getBusinessRegistrationNumber())) {
             throw new IllegalArgumentException("Supplier with this business registration number already exists");
         }
     }
@@ -148,10 +159,10 @@ public class SupplierService {
      * Enhanced supplier verification with status validation
      */
     @Transactional
-    public Supplier verifySupplier(Long id, boolean approved) {
+    public SupplierResponseDTO verifySupplier(Long id, boolean approved) {
         logger.info("Verifying supplier ID: {}, approved: {}", id, approved);
 
-        Supplier supplier = getSupplierById(id)
+        Supplier supplier = supplierRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + id));
 
         // Validate current status
@@ -174,16 +185,17 @@ public class SupplierService {
             logger.warn("Supplier ID: {} rejected", id);
         }
 
-        return supplierRepository.save(supplier);
+        Supplier updatedSupplier = supplierRepository.save(supplier);
+        return convertToDTO(updatedSupplier);
     }
 
     /**
      * Update supplier status with validation
      */
-    public Supplier updateSupplierStatus(Long id, Supplier.Status newStatus) {
+    public SupplierResponseDTO updateSupplierStatus(Long id, Supplier.Status newStatus) {
         logger.info("Updating supplier ID: {} status to: {}", id, newStatus);
 
-        Supplier supplier = getSupplierById(id)
+        Supplier supplier = supplierRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + id));
 
         // Validate status transition
@@ -199,7 +211,8 @@ public class SupplierService {
             supplier.setVerified(false);
         }
 
-        return supplierRepository.save(supplier);
+        Supplier updatedSupplier = supplierRepository.save(supplier);
+        return convertToDTO(updatedSupplier);
     }
 
     /**
@@ -216,33 +229,39 @@ public class SupplierService {
     /**
      * Update supplier profile (excludes sensitive fields)
      */
-    public Supplier updateSupplier(Long id, Supplier updated) {
+    public SupplierResponseDTO updateSupplier(Long id, SupplierRequestDTO requestDTO) {
         logger.info("Updating supplier profile ID: {}", id);
 
-        Supplier supplier = getSupplierById(id)
+        Supplier supplier = supplierRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + id));
 
-        // Don't update email, password, role, or verification status here
-        supplier.setCompanyName(updated.getCompanyName());
-        supplier.setContactPerson(updated.getContactPerson());
-        supplier.setPhone(updated.getPhone());
-        supplier.setWebsite(updated.getWebsite());
-        supplier.setDescription(updated.getDescription());
-        supplier.setYearsInBusiness(updated.getYearsInBusiness());
-        supplier.setLogoUrl(updated.getLogoUrl());
+        // Don't update email, role, or verification status here
+        supplier.setCompanyName(requestDTO.getCompanyName());
+        supplier.setContactPerson(requestDTO.getContactPerson());
+        supplier.setPhone(requestDTO.getPhone());
+        supplier.setWebsite(requestDTO.getWebsite());
+        supplier.setDescription(requestDTO.getDescription());
+        supplier.setYearsInBusiness(requestDTO.getYearsInBusiness());
+        supplier.setLogoUrl(requestDTO.getLogoUrl());
+        supplier.setBusinessRegistrationNumber(requestDTO.getBusinessRegistrationNumber());
+
+        // Only update password if provided (and not empty)
+        if (requestDTO.getPassword() != null && !requestDTO.getPassword().trim().isEmpty()) {
+            supplier.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
+        }
 
         Supplier savedSupplier = supplierRepository.save(supplier);
         logger.info("Supplier profile updated successfully for ID: {}", id);
-        return savedSupplier;
+        return convertToDTO(savedSupplier);
     }
 
     /**
      * Update supplier password with validation
      */
-    public Supplier updatePassword(Long id, String currentPassword, String newPassword) {
+    public SupplierResponseDTO updatePassword(Long id, String currentPassword, String newPassword) {
         logger.info("Updating password for supplier ID: {}", id);
 
-        Supplier supplier = getSupplierById(id)
+        Supplier supplier = supplierRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + id));
 
         // Verify current password
@@ -259,59 +278,75 @@ public class SupplierService {
         Supplier updatedSupplier = supplierRepository.save(supplier);
 
         logger.info("Password updated successfully for supplier ID: {}", id);
-        return updatedSupplier;
+        return convertToDTO(updatedSupplier);
     }
 
     /**
-     * Get supplier without sensitive data (for public responses)
+     * Convert DTO to Entity
      */
-    public Optional<Supplier> getSupplierByIdSafe(Long id) {
-        return supplierRepository.findById(id)
-                .map(supplier -> {
-                    // Clear sensitive data
-                    supplier.setPassword(null);
-                    return supplier;
-                });
+    private Supplier convertToEntity(SupplierRequestDTO requestDTO) {
+        Supplier supplier = new Supplier();
+        supplier.setCompanyName(requestDTO.getCompanyName());
+        supplier.setBusinessRegistrationNumber(requestDTO.getBusinessRegistrationNumber());
+        supplier.setContactPerson(requestDTO.getContactPerson());
+        supplier.setEmail(requestDTO.getEmail());
+        supplier.setPassword(requestDTO.getPassword()); // Will be hashed in service
+        supplier.setPhone(requestDTO.getPhone());
+        supplier.setWebsite(requestDTO.getWebsite());
+        supplier.setDescription(requestDTO.getDescription());
+        supplier.setYearsInBusiness(requestDTO.getYearsInBusiness());
+        supplier.setLogoUrl(requestDTO.getLogoUrl());
+        return supplier;
     }
 
     /**
-     * Get supplier by email without sensitive data
+     * Convert Entity to DTO
      */
-    public Optional<Supplier> getSupplierByEmailSafe(String email) {
-        return supplierRepository.findByEmail(email)
-                .map(supplier -> {
-                    supplier.setPassword(null);
-                    return supplier;
-                });
+    private SupplierResponseDTO convertToDTO(Supplier supplier) {
+        return new SupplierResponseDTO(supplier);
     }
 
-    // Standard CRUD operations with security
-    public List<Supplier> getAllSuppliers() {
+    // Standard CRUD operations with security - ALL RETURNING DTOS
+    @Transactional(readOnly = true)
+    public List<SupplierResponseDTO> getAllSuppliers() {
         logger.debug("Retrieving all suppliers");
         List<Supplier> suppliers = supplierRepository.findAll();
-        // Clear passwords from response
-        suppliers.forEach(s -> s.setPassword(null));
-        return suppliers;
+        return suppliers.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
-    public List<Supplier> getVerifiedSuppliers() {
+    @Transactional(readOnly = true)
+    public List<SupplierResponseDTO> getVerifiedSuppliers() {
         logger.debug("Retrieving verified suppliers");
         List<Supplier> suppliers = supplierRepository.findByIsVerifiedTrue();
-        suppliers.forEach(s -> s.setPassword(null));
-        return suppliers;
+        return suppliers.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
-    public Supplier getSupplier(Long id) {
+    @Transactional(readOnly = true)
+    public SupplierResponseDTO getSupplier(Long id) {
+        logger.debug("Retrieving supplier by ID: {}", id);
+        Supplier supplier = supplierRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + id));
+        return convertToDTO(supplier);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<SupplierResponseDTO> getSupplierById(Long id) {
         logger.debug("Retrieving supplier by ID: {}", id);
         return supplierRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + id));
+                .map(this::convertToDTO);
     }
 
-    public Optional<Supplier> getSupplierById(Long id) {
-        logger.debug("Retrieving supplier by ID: {}", id);
+    @Transactional(readOnly = true)
+    public Optional<Supplier> getSupplierEntityById(Long id) {
+        logger.debug("Retrieving supplier entity by ID: {}", id);
         return supplierRepository.findById(id);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Supplier> getSupplierByEmail(String email) {
         logger.debug("Retrieving supplier by email: {}", email);
         return supplierRepository.findByEmail(email);
@@ -320,19 +355,17 @@ public class SupplierService {
     /**
      * Search suppliers by material category or type
      */
-    public List<Supplier> getSuppliersByMaterialCategory(String category) {
+    @Transactional(readOnly = true)
+    public List<SupplierResponseDTO> getSuppliersByMaterialCategory(String category) {
         logger.debug("Searching suppliers by material category: {}", category);
-        // This would require a custom repository method
-        // For now, return all suppliers and filter by materials
         List<Supplier> allSuppliers = supplierRepository.findAll();
-        List<Supplier> filteredSuppliers = new ArrayList<>();
+        List<SupplierResponseDTO> filteredSuppliers = new ArrayList<>();
 
         for (Supplier supplier : allSuppliers) {
             if (supplier.getMaterials().stream()
                     .anyMatch(material -> material.getCategory() != null &&
                             material.getCategory().equalsIgnoreCase(category))) {
-                supplier.setPassword(null); // Clear password
-                filteredSuppliers.add(supplier);
+                filteredSuppliers.add(convertToDTO(supplier));
             }
         }
 
@@ -342,6 +375,7 @@ public class SupplierService {
     /**
      * Check if supplier exists and is verified
      */
+    @Transactional(readOnly = true)
     public boolean isSupplierVerified(Long id) {
         return supplierRepository.findById(id)
                 .map(supplier -> supplier.isVerified() &&
@@ -352,18 +386,18 @@ public class SupplierService {
     /**
      * Get suppliers with specific material availability
      */
-    public List<Supplier> getSuppliersWithAvailableMaterials() {
+    @Transactional(readOnly = true)
+    public List<SupplierResponseDTO> getSuppliersWithAvailableMaterials() {
         logger.debug("Retrieving suppliers with available materials");
         List<Supplier> suppliers = supplierRepository.findAll();
-        List<Supplier> suppliersWithAvailableMaterials = new ArrayList<>();
+        List<SupplierResponseDTO> suppliersWithAvailableMaterials = new ArrayList<>();
 
         for (Supplier supplier : suppliers) {
             boolean hasAvailableMaterials = supplier.getMaterials().stream()
                     .anyMatch(Material::isAvailable);
 
             if (hasAvailableMaterials) {
-                supplier.setPassword(null); // Clear password
-                suppliersWithAvailableMaterials.add(supplier);
+                suppliersWithAvailableMaterials.add(convertToDTO(supplier));
             }
         }
 
@@ -390,7 +424,7 @@ public class SupplierService {
     public Material addMaterialToSupplier(Long supplierId, Material material) {
         logger.info("Adding material to supplier ID: {}", supplierId);
 
-        Supplier supplier = getSupplierById(supplierId)
+        Supplier supplier = supplierRepository.findById(supplierId)
                 .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + supplierId));
 
         material.setSupplier(supplier);
@@ -407,6 +441,7 @@ public class SupplierService {
     /**
      * Get materials for a specific supplier
      */
+    @Transactional(readOnly = true)
     public List<Material> getSupplierMaterials(Long supplierId) {
         logger.debug("Retrieving materials for supplier ID: {}", supplierId);
         // Validate supplier exists
@@ -424,7 +459,7 @@ public class SupplierService {
         logger.warn("Deleting supplier ID: {}", id);
 
         // Check if supplier exists
-        Supplier supplier = getSupplierById(id)
+        Supplier supplier = supplierRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + id));
 
         // First delete materials to maintain referential integrity
