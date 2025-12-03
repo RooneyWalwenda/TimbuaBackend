@@ -1,7 +1,9 @@
 package com.Timbua.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -13,11 +15,20 @@ public class QuotationRequest {
     private Long id;
 
     private Long materialId;       // Material requested
-    private Long supplierId;       // Supplier who owns the material
 
-    // Updated: Replace contractorId with proper relationship
+    // CHANGED: Removed single supplierId and added many-to-many relationship
+    @ManyToMany
+    @JoinTable(
+            name = "quotation_request_suppliers",
+            joinColumns = @JoinColumn(name = "request_id"),
+            inverseJoinColumns = @JoinColumn(name = "supplier_id")
+    )
+    @JsonIgnoreProperties({"materials", "password", "documents", "invitedSuppliers"})  // Exclude sensitive/bidirectional fields
+    private List<Supplier> invitedSuppliers = new ArrayList<>();
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contractor_id")
+    @JsonIgnoreProperties({"quotationRequests", "password", "documents", "constructionSites"})  // Prevent circular reference
     private Contractor contractor;
 
     private Long siteId;           // Site where materials are needed
@@ -31,13 +42,14 @@ public class QuotationRequest {
     private Status status = Status.PENDING;
 
     public enum Status {
-        PENDING,
-        RECEIVED,
-        ACCEPTED,
-        REJECTED
+        PENDING,      // Request created, waiting for quotes
+        QUOTED,       // At least one quote received
+        ACCEPTED,     // Quote accepted, order created
+        CANCELLED     // Request cancelled
     }
 
     @OneToMany(mappedBy = "quotationRequest", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("quotationRequest")  // Prevent circular reference
     private List<Quote> quotes;
 
     // Getters and Setters
@@ -47,21 +59,27 @@ public class QuotationRequest {
     public Long getMaterialId() { return materialId; }
     public void setMaterialId(Long materialId) { this.materialId = materialId; }
 
-    public Long getSupplierId() { return supplierId; }
-    public void setSupplierId(Long supplierId) { this.supplierId = supplierId; }
+    // CHANGED: Getter/Setter for multiple suppliers
+    public List<Supplier> getInvitedSuppliers() { return invitedSuppliers; }
+    public void setInvitedSuppliers(List<Supplier> invitedSuppliers) { this.invitedSuppliers = invitedSuppliers; }
 
-    // Updated: Contractor relationship getter and setter
+    // Helper method to add a single supplier
+    public void addInvitedSupplier(Supplier supplier) {
+        if (!invitedSuppliers.contains(supplier)) {
+            invitedSuppliers.add(supplier);
+        }
+    }
+
+    // Helper method to remove a supplier
+    public void removeInvitedSupplier(Supplier supplier) {
+        invitedSuppliers.remove(supplier);
+    }
+
     public Contractor getContractor() { return contractor; }
     public void setContractor(Contractor contractor) { this.contractor = contractor; }
 
-    // Keep backward compatibility for contractorId
     public Long getContractorId() {
         return contractor != null ? contractor.getId() : null;
-    }
-
-    public void setContractorId(Long contractorId) {
-        // This method is kept for backward compatibility but won't set the relationship
-        // Use setContractor() instead for proper relationship setting
     }
 
     public Long getSiteId() { return siteId; }
