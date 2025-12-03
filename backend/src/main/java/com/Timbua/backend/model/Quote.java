@@ -1,6 +1,8 @@
 package com.Timbua.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "quotes")
@@ -10,10 +12,20 @@ public class Quote {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private double price;
-    private String currency;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "request_id")
+    @JsonIgnoreProperties({"quotes", "contractor", "invitedSuppliers"})  // Prevent circular reference
+    private QuotationRequest quotationRequest;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id")
+    @JsonIgnoreProperties({"materials", "password", "documents"})  // Exclude sensitive/bidirectional fields
+    private Supplier supplier;  // Which supplier submitted this quote
+
+    private Double totalAmount;
     private String deliveryTime;
-    private String remarks;
+    private String terms;
+    private LocalDateTime submittedDate;
 
     @Enumerated(EnumType.STRING)
     private Status status = Status.PENDING;
@@ -24,29 +36,28 @@ public class Quote {
         REJECTED
     }
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "quotation_request_id")
-    private QuotationRequest quotationRequest;
-
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public double getPrice() { return price; }
-    public void setPrice(double price) { this.price = price; }
+    public QuotationRequest getQuotationRequest() { return quotationRequest; }
+    public void setQuotationRequest(QuotationRequest quotationRequest) { this.quotationRequest = quotationRequest; }
 
-    public String getCurrency() { return currency; }
-    public void setCurrency(String currency) { this.currency = currency; }
+    public Supplier getSupplier() { return supplier; }
+    public void setSupplier(Supplier supplier) { this.supplier = supplier; }
+
+    public Double getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(Double totalAmount) { this.totalAmount = totalAmount; }
 
     public String getDeliveryTime() { return deliveryTime; }
     public void setDeliveryTime(String deliveryTime) { this.deliveryTime = deliveryTime; }
 
-    public String getRemarks() { return remarks; }
-    public void setRemarks(String remarks) { this.remarks = remarks; }
+    public String getTerms() { return terms; }
+    public void setTerms(String terms) { this.terms = terms; }
+
+    public LocalDateTime getSubmittedDate() { return submittedDate; }
+    public void setSubmittedDate(LocalDateTime submittedDate) { this.submittedDate = submittedDate; }
 
     public Status getStatus() { return status; }
     public void setStatus(Status status) { this.status = status; }
-
-    public QuotationRequest getQuotationRequest() { return quotationRequest; }
-    public void setQuotationRequest(QuotationRequest quotationRequest) { this.quotationRequest = quotationRequest; }
 }
