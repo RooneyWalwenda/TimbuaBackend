@@ -1,6 +1,8 @@
 package com.Timbua.backend.service;
 
 import com.Timbua.backend.dto.AuthLoginResponse;
+import com.Timbua.backend.dto.ContractorResponseDTO;
+import com.Timbua.backend.dto.SupplierResponseDTO;
 import com.Timbua.backend.model.Contractor;
 import com.Timbua.backend.model.Supplier;
 import com.Timbua.backend.model.SuperAdmin;
@@ -27,7 +29,6 @@ public class AuthService {
                        SuperAdminRepository superAdminRepository,
                        PasswordEncoder passwordEncoder,
                        JwtUtil jwtUtil) {
-
         this.contractorRepository = contractorRepository;
         this.supplierRepository = supplierRepository;
         this.superAdminRepository = superAdminRepository;
@@ -35,22 +36,19 @@ public class AuthService {
         this.jwtUtil = jwtUtil;
     }
 
-    // -----------------------------------------------------
-    // SUPER ADMIN SIGNUP
-    // -----------------------------------------------------
+    // -----------------------------
+    // Super Admin Signup
+    // -----------------------------
     public AuthLoginResponse registerSuperAdmin(String email, String password) {
-
         if (email == null || email.trim().isEmpty()) {
             return createErrorResponse("Email is required");
         }
-
         if (password == null || password.trim().isEmpty()) {
             return createErrorResponse("Password is required");
         }
 
         String normalizedEmail = email.trim().toLowerCase();
 
-        // Ensure email not used anywhere
         if (checkEmailExists(normalizedEmail) ||
                 superAdminRepository.findByEmail(normalizedEmail).isPresent()) {
             return createErrorResponse("Email already exists");
@@ -70,83 +68,53 @@ public class AuthService {
         return response;
     }
 
-    // -----------------------------------------------------
-    // LOGIN (Super Admin → Contractor → Supplier)
-    // -----------------------------------------------------
+    // -----------------------------
+    // User Login
+    // -----------------------------
     public AuthLoginResponse authenticateUser(String email, String password) {
-
-        if (email == null || email.trim().isEmpty()) {
-            return createErrorResponse("Email is required");
-        }
-
-        if (password == null || password.trim().isEmpty()) {
-            return createErrorResponse("Password is required");
-        }
+        if (email == null || email.trim().isEmpty()) return createErrorResponse("Email is required");
+        if (password == null || password.trim().isEmpty()) return createErrorResponse("Password is required");
 
         String normalizedEmail = email.trim().toLowerCase();
 
-        // -----------------------------------------------------
-        // SUPER ADMIN LOGIN
-        // -----------------------------------------------------
+        // SuperAdmin login
         Optional<SuperAdmin> adminOpt = superAdminRepository.findByEmail(normalizedEmail);
         if (adminOpt.isPresent()) {
             SuperAdmin admin = adminOpt.get();
-
             if (passwordEncoder.matches(password, admin.getPassword())) {
-                AuthLoginResponse response = new AuthLoginResponse();
-                response.setSuccess(true);
-                response.setMessage("Welcome Super Admin");
-                response.setRole("SUPER_ADMIN");
-                response.setContractor(null);
-                response.setSupplier(null);
-                response.setToken(generateJwtToken(admin.getEmail(), "SUPER_ADMIN"));
-                return response;
+                return createSuccessResponse(admin);
             } else {
                 return createErrorResponse("Invalid Super Admin password");
             }
         }
 
-        // -----------------------------------------------------
-        // CONTRACTOR LOGIN
-        // -----------------------------------------------------
+        // Contractor login
         Optional<Contractor> contractorOpt = contractorRepository.findByEmail(normalizedEmail);
         if (contractorOpt.isPresent()) {
             Contractor contractor = contractorOpt.get();
-
-            if (contractor.getStatus() == Contractor.Status.SUSPENDED) {
+            if (contractor.getStatus() == Contractor.Status.SUSPENDED)
                 return createErrorResponse("Contractor account has been suspended");
-            }
-
-            if (contractor.getStatus() == Contractor.Status.REJECTED) {
+            if (contractor.getStatus() == Contractor.Status.REJECTED)
                 return createErrorResponse("Contractor registration was rejected");
-            }
 
             if (passwordEncoder.matches(password, contractor.getPassword())) {
-                return createSuccessResponse(contractor, "CONTRACTOR",
-                        getWelcomeMessage(contractor.getStatus(), "contractor"));
+                return createSuccessResponse(contractor);
             } else {
                 return createErrorResponse("Invalid password for contractor account");
             }
         }
 
-        // -----------------------------------------------------
-        // SUPPLIER LOGIN
-        // -----------------------------------------------------
+        // Supplier login
         Optional<Supplier> supplierOpt = supplierRepository.findByEmail(normalizedEmail);
         if (supplierOpt.isPresent()) {
             Supplier supplier = supplierOpt.get();
-
-            if (supplier.getStatus() == Supplier.Status.SUSPENDED) {
+            if (supplier.getStatus() == Supplier.Status.SUSPENDED)
                 return createErrorResponse("Supplier account has been suspended");
-            }
-
-            if (supplier.getStatus() == Supplier.Status.REJECTED) {
+            if (supplier.getStatus() == Supplier.Status.REJECTED)
                 return createErrorResponse("Supplier registration was rejected");
-            }
 
             if (passwordEncoder.matches(password, supplier.getPassword())) {
-                return createSuccessResponse(supplier, "SUPPLIER",
-                        getWelcomeMessage(supplier.getStatus(), "supplier"));
+                return createSuccessResponse(supplier);
             } else {
                 return createErrorResponse("Invalid password for supplier account");
             }
@@ -155,85 +123,63 @@ public class AuthService {
         return createErrorResponse("No account found with email: " + email);
     }
 
-    // -----------------------------------------------------
-    // HELPER METHODS
-    // -----------------------------------------------------
+    // -----------------------------
+    // Check email existence
+    // -----------------------------
     public boolean checkEmailExists(String email) {
         if (email == null || email.trim().isEmpty()) return false;
-
         String normalizedEmail = email.trim().toLowerCase();
-
         return contractorRepository.findByEmail(normalizedEmail).isPresent() ||
                 supplierRepository.findByEmail(normalizedEmail).isPresent();
     }
 
-    // -----------------------------------------------------
-    // CONTRACTOR SUCCESS RESPONSE
-    // -----------------------------------------------------
-    private AuthLoginResponse createSuccessResponse(Contractor contractor, String role, String message) {
+    // -----------------------------
+    // Success responses - UPDATED TO USE DTOS
+    // -----------------------------
+    private AuthLoginResponse createSuccessResponse(SuperAdmin admin) {
         AuthLoginResponse response = new AuthLoginResponse();
         response.setSuccess(true);
-        response.setMessage(message);
-        response.setRole(role);
-
-        Contractor sanitized = new Contractor();
-        sanitized.setId(contractor.getId());
-        sanitized.setCompanyName(contractor.getCompanyName());
-        sanitized.setEmail(contractor.getEmail());
-        sanitized.setContactPerson(contractor.getContactPerson());
-        sanitized.setPhoneNumber(contractor.getPhoneNumber());
-        sanitized.setBusinessRegistrationNumber(contractor.getBusinessRegistrationNumber());
-        sanitized.setPhysicalAddress(contractor.getPhysicalAddress());
-        sanitized.setSpecialization(contractor.getSpecialization());
-        sanitized.setYearsOfExperience(contractor.getYearsOfExperience());
-        sanitized.setLicenseNumber(contractor.getLicenseNumber());
-        sanitized.setStatus(contractor.getStatus());
-        sanitized.setRole(contractor.getRole());
-        sanitized.setIsVerified(contractor.getIsVerified());
-        sanitized.setRegistrationDate(contractor.getRegistrationDate());
-        sanitized.setVerificationDate(contractor.getVerificationDate());
-
-        response.setContractor(sanitized);
-        response.setSupplier(null);
-        response.setToken(generateJwtToken(contractor.getEmail(), role));
-
-        return response;
-    }
-
-    // -----------------------------------------------------
-    // SUPPLIER SUCCESS RESPONSE
-    // -----------------------------------------------------
-    private AuthLoginResponse createSuccessResponse(Supplier supplier, String role, String message) {
-        AuthLoginResponse response = new AuthLoginResponse();
-        response.setSuccess(true);
-        response.setMessage(message);
-        response.setRole(role);
-
-        Supplier sanitized = new Supplier();
-        sanitized.setId(supplier.getId());
-        sanitized.setCompanyName(supplier.getCompanyName());
-        sanitized.setBusinessRegistrationNumber(supplier.getBusinessRegistrationNumber());
-        sanitized.setContactPerson(supplier.getContactPerson());
-        sanitized.setEmail(supplier.getEmail());
-        sanitized.setPhone(supplier.getPhone());
-        sanitized.setWebsite(supplier.getWebsite());
-        sanitized.setDescription(supplier.getDescription());
-        sanitized.setYearsInBusiness(supplier.getYearsInBusiness());
-        sanitized.setLogoUrl(supplier.getLogoUrl());
-        sanitized.setStatus(supplier.getStatus());
-        sanitized.setRole(supplier.getRole());
-        sanitized.setVerified(supplier.isVerified());
-        sanitized.setVerificationDate(supplier.getVerificationDate());
-        sanitized.setCreatedAt(supplier.getCreatedAt());
-        sanitized.setUpdatedAt(supplier.getUpdatedAt());
-
-        response.setSupplier(sanitized);
+        response.setMessage("Welcome Super Admin");
+        response.setRole("SUPER_ADMIN");
         response.setContractor(null);
-        response.setToken(generateJwtToken(supplier.getEmail(), role));
-
+        response.setSupplier(null);
+        response.setToken(generateJwtToken(admin.getEmail(), "SUPER_ADMIN"));
         return response;
     }
 
+    private AuthLoginResponse createSuccessResponse(Contractor contractor) {
+        AuthLoginResponse response = new AuthLoginResponse();
+        response.setSuccess(true);
+        response.setMessage("Welcome Contractor! Login successful.");
+        response.setRole("CONTRACTOR");
+
+        // Convert Contractor entity to ContractorResponseDTO
+        ContractorResponseDTO contractorDTO = new ContractorResponseDTO(contractor);
+        response.setContractor(contractorDTO);
+
+        response.setSupplier(null);
+        response.setToken(generateJwtToken(contractor.getEmail(), "CONTRACTOR"));
+        return response;
+    }
+
+    private AuthLoginResponse createSuccessResponse(Supplier supplier) {
+        AuthLoginResponse response = new AuthLoginResponse();
+        response.setSuccess(true);
+        response.setMessage("Welcome Supplier! Login successful.");
+        response.setRole("SUPPLIER");
+
+        // Convert Supplier entity to SupplierResponseDTO
+        SupplierResponseDTO supplierDTO = new SupplierResponseDTO(supplier);
+        response.setSupplier(supplierDTO);
+
+        response.setContractor(null);
+        response.setToken(generateJwtToken(supplier.getEmail(), "SUPPLIER"));
+        return response;
+    }
+
+    // -----------------------------
+    // Error response
+    // -----------------------------
     private AuthLoginResponse createErrorResponse(String message) {
         AuthLoginResponse response = new AuthLoginResponse();
         response.setSuccess(false);
@@ -241,13 +187,9 @@ public class AuthService {
         return response;
     }
 
-    private String getWelcomeMessage(Enum<?> status, String role) {
-        return "Welcome " + role + "! Login successful.";
-    }
-
-    // -----------------------------------------------------
-    // JWT GENERATION
-    // -----------------------------------------------------
+    // -----------------------------
+    // JWT token generation
+    // -----------------------------
     private String generateJwtToken(String email, String role) {
         return jwtUtil.generateToken(email, role);
     }
