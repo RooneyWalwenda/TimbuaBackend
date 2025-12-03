@@ -1,5 +1,7 @@
 package com.Timbua.backend.service;
 
+import com.Timbua.backend.dto.ContractorRequestDTO;
+import com.Timbua.backend.dto.ContractorResponseDTO;
 import com.Timbua.backend.model.Contractor;
 import com.Timbua.backend.model.ContractorDocument;
 import com.Timbua.backend.repository.ContractorDocumentRepository;
@@ -11,8 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -35,54 +39,58 @@ public class ContractorService {
     /**
      * Self-registration for contractors with proper role assignment and validation
      */
-    public Contractor registerContractor(Contractor contractor) {
-        logger.info("Registering new contractor with email: {}", contractor.getEmail());
+    public ContractorResponseDTO registerContractor(ContractorRequestDTO requestDTO) {
+        logger.info("Registering new contractor with email: {}", requestDTO.getEmail());
 
         // Validate input
-        validateContractorRegistration(contractor);
+        validateContractorRegistration(requestDTO);
+
+        // Convert DTO to Entity
+        Contractor contractor = convertToEntity(requestDTO);
 
         // Encrypt password
-        contractor.setPassword(passwordEncoder.encode(contractor.getPassword()));
+        contractor.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
 
         // Set initial status and role
         contractor.setStatus(Contractor.Status.PENDING);
         contractor.setRole(Contractor.Role.CONTRACTOR); // Set the role explicitly
         contractor.setIsVerified(false);
-        contractor.setRegistrationDate(java.time.LocalDateTime.now());
+        contractor.setRegistrationDate(LocalDateTime.now());
 
         Contractor savedContractor = contractorRepository.save(contractor);
         logger.info("Contractor registered successfully with ID: {}", savedContractor.getId());
 
-        return savedContractor;
+        // Return DTO (without password)
+        return convertToDTO(savedContractor);
     }
 
     /**
-     * Validate contractor registration data
+     * Validate contractor registration data from DTO
      */
-    private void validateContractorRegistration(Contractor contractor) {
-        if (contractor.getEmail() == null || contractor.getEmail().trim().isEmpty()) {
+    private void validateContractorRegistration(ContractorRequestDTO requestDTO) {
+        if (requestDTO.getEmail() == null || requestDTO.getEmail().trim().isEmpty()) {
             throw new IllegalArgumentException("Email is required");
         }
 
-        if (contractor.getPassword() == null || contractor.getPassword().trim().isEmpty()) {
+        if (requestDTO.getPassword() == null || requestDTO.getPassword().trim().isEmpty()) {
             throw new IllegalArgumentException("Password is required");
         }
 
-        if (contractor.getCompanyName() == null || contractor.getCompanyName().trim().isEmpty()) {
+        if (requestDTO.getCompanyName() == null || requestDTO.getCompanyName().trim().isEmpty()) {
             throw new IllegalArgumentException("Company name is required");
         }
 
-        if (contractor.getContactPerson() == null || contractor.getContactPerson().trim().isEmpty()) {
+        if (requestDTO.getContactPerson() == null || requestDTO.getContactPerson().trim().isEmpty()) {
             throw new IllegalArgumentException("Contact person is required");
         }
 
         // Check uniqueness
-        if (contractorRepository.existsByEmail(contractor.getEmail().trim().toLowerCase())) {
+        if (contractorRepository.existsByEmail(requestDTO.getEmail().trim().toLowerCase())) {
             throw new IllegalArgumentException("Contractor with this email already exists");
         }
 
-        if (contractor.getBusinessRegistrationNumber() != null &&
-                contractorRepository.existsByBusinessRegistrationNumber(contractor.getBusinessRegistrationNumber())) {
+        if (requestDTO.getBusinessRegistrationNumber() != null &&
+                contractorRepository.existsByBusinessRegistrationNumber(requestDTO.getBusinessRegistrationNumber())) {
             throw new IllegalArgumentException("Contractor with this business registration number already exists");
         }
     }
@@ -90,10 +98,10 @@ public class ContractorService {
     /**
      * Admin verification with status management
      */
-    public Contractor verifyContractor(Long id, boolean approved, String remarks) {
+    public ContractorResponseDTO verifyContractor(Long id, boolean approved, String remarks) {
         logger.info("Verifying contractor ID: {}, approved: {}, remarks: {}", id, approved, remarks);
 
-        Contractor contractor = getContractorById(id)
+        Contractor contractor = contractorRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contractor not found with id: " + id));
 
         // Validate current status
@@ -116,16 +124,17 @@ public class ContractorService {
             logger.warn("Contractor ID: {} rejected. Remarks: {}", id, remarks);
         }
 
-        return contractorRepository.save(contractor);
+        Contractor updatedContractor = contractorRepository.save(contractor);
+        return convertToDTO(updatedContractor);
     }
 
     /**
      * Update contractor status with validation
      */
-    public Contractor updateContractorStatus(Long id, Contractor.Status newStatus) {
+    public ContractorResponseDTO updateContractorStatus(Long id, Contractor.Status newStatus) {
         logger.info("Updating contractor ID: {} status to: {}", id, newStatus);
 
-        Contractor contractor = getContractorById(id)
+        Contractor contractor = contractorRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contractor not found with id: " + id));
 
         // Validate status transition
@@ -141,7 +150,8 @@ public class ContractorService {
             contractor.setIsVerified(false);
         }
 
-        return contractorRepository.save(contractor);
+        Contractor updatedContractor = contractorRepository.save(contractor);
+        return convertToDTO(updatedContractor);
     }
 
     /**
@@ -161,7 +171,7 @@ public class ContractorService {
     public ContractorDocument uploadDocument(Long contractorId, ContractorDocument document) {
         logger.debug("Uploading document for contractor ID: {}", contractorId);
 
-        Contractor contractor = getContractorById(contractorId)
+        Contractor contractor = contractorRepository.findById(contractorId)
                 .orElseThrow(() -> new RuntimeException("Contractor not found"));
 
         document.setContractor(contractor);
@@ -190,34 +200,40 @@ public class ContractorService {
     /**
      * Update contractor profile (excludes sensitive fields)
      */
-    public Contractor updateContractor(Long id, Contractor contractorDetails) {
+    public ContractorResponseDTO updateContractor(Long id, ContractorRequestDTO requestDTO) {
         logger.info("Updating contractor profile ID: {}", id);
 
-        return contractorRepository.findById(id)
-                .map(existingContractor -> {
-                    // Don't update email, password, role, or verification status here
-                    existingContractor.setCompanyName(contractorDetails.getCompanyName());
-                    existingContractor.setContactPerson(contractorDetails.getContactPerson());
-                    existingContractor.setPhoneNumber(contractorDetails.getPhoneNumber());
-                    existingContractor.setPhysicalAddress(contractorDetails.getPhysicalAddress());
-                    existingContractor.setSpecialization(contractorDetails.getSpecialization());
-                    existingContractor.setYearsOfExperience(contractorDetails.getYearsOfExperience());
-                    existingContractor.setLicenseNumber(contractorDetails.getLicenseNumber());
-
-                    Contractor updatedContractor = contractorRepository.save(existingContractor);
-                    logger.info("Contractor profile updated successfully for ID: {}", id);
-                    return updatedContractor;
-                })
+        Contractor contractor = contractorRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contractor not found with id: " + id));
+
+        // Don't update email, role, or verification status here
+        contractor.setCompanyName(requestDTO.getCompanyName());
+        contractor.setContactPerson(requestDTO.getContactPerson());
+        contractor.setPhoneNumber(requestDTO.getPhoneNumber());
+        contractor.setPhysicalAddress(requestDTO.getPhysicalAddress());
+        contractor.setSpecialization(requestDTO.getSpecialization());
+        contractor.setYearsOfExperience(requestDTO.getYearsOfExperience());
+        contractor.setLicenseNumber(requestDTO.getLicenseNumber());
+        contractor.setBusinessRegistrationNumber(requestDTO.getBusinessRegistrationNumber());
+
+        // Only update password if provided (and not empty)
+        if (requestDTO.getPassword() != null && !requestDTO.getPassword().trim().isEmpty()) {
+            contractor.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
+        }
+
+        Contractor updatedContractor = contractorRepository.save(contractor);
+        logger.info("Contractor profile updated successfully for ID: {}", id);
+
+        return convertToDTO(updatedContractor);
     }
 
     /**
      * Update contractor password with validation
      */
-    public Contractor updatePassword(Long id, String currentPassword, String newPassword) {
+    public ContractorResponseDTO updatePassword(Long id, String currentPassword, String newPassword) {
         logger.info("Updating password for contractor ID: {}", id);
 
-        Contractor contractor = getContractorById(id)
+        Contractor contractor = contractorRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contractor not found with id: " + id));
 
         // Verify current password
@@ -234,60 +250,76 @@ public class ContractorService {
         Contractor updatedContractor = contractorRepository.save(contractor);
 
         logger.info("Password updated successfully for contractor ID: {}", id);
-        return updatedContractor;
+        return convertToDTO(updatedContractor);
     }
 
     /**
-     * Get contractor without sensitive data (for public responses)
+     * Convert DTO to Entity
      */
-    public Optional<Contractor> getContractorByIdSafe(Long id) {
-        return contractorRepository.findById(id)
-                .map(contractor -> {
-                    // Clear sensitive data
-                    contractor.setPassword(null);
-                    return contractor;
-                });
+    private Contractor convertToEntity(ContractorRequestDTO requestDTO) {
+        Contractor contractor = new Contractor();
+        contractor.setCompanyName(requestDTO.getCompanyName());
+        contractor.setEmail(requestDTO.getEmail());
+        contractor.setPassword(requestDTO.getPassword()); // Will be hashed in service
+        contractor.setContactPerson(requestDTO.getContactPerson());
+        contractor.setPhoneNumber(requestDTO.getPhoneNumber());
+        contractor.setBusinessRegistrationNumber(requestDTO.getBusinessRegistrationNumber());
+        contractor.setPhysicalAddress(requestDTO.getPhysicalAddress());
+        contractor.setSpecialization(requestDTO.getSpecialization());
+        contractor.setYearsOfExperience(requestDTO.getYearsOfExperience());
+        contractor.setLicenseNumber(requestDTO.getLicenseNumber());
+        return contractor;
     }
 
     /**
-     * Get contractor by email without sensitive data
+     * Convert Entity to DTO
      */
-    public Optional<Contractor> getContractorByEmailSafe(String email) {
-        return contractorRepository.findByEmail(email)
-                .map(contractor -> {
-                    contractor.setPassword(null);
-                    return contractor;
-                });
+    private ContractorResponseDTO convertToDTO(Contractor contractor) {
+        return new ContractorResponseDTO(contractor);
     }
 
-    // Standard CRUD operations
-    public List<Contractor> getAllContractors() {
+    // Standard CRUD operations - ALL RETURNING DTOS
+    @Transactional(readOnly = true)
+    public List<ContractorResponseDTO> getAllContractors() {
         logger.debug("Retrieving all contractors");
         List<Contractor> contractors = contractorRepository.findAll();
-        // Clear passwords from response
-        contractors.forEach(c -> c.setPassword(null));
-        return contractors;
+        return contractors.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
-    public List<Contractor> getContractorsByStatus(Contractor.Status status) {
+    @Transactional(readOnly = true)
+    public List<ContractorResponseDTO> getContractorsByStatus(Contractor.Status status) {
         logger.debug("Retrieving contractors by status: {}", status);
         List<Contractor> contractors = contractorRepository.findByStatus(status);
-        contractors.forEach(c -> c.setPassword(null));
-        return contractors;
+        return contractors.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
-    public List<Contractor> getVerifiedContractors() {
+    @Transactional(readOnly = true)
+    public List<ContractorResponseDTO> getVerifiedContractors() {
         logger.debug("Retrieving verified contractors");
         List<Contractor> contractors = contractorRepository.findByIsVerifiedTrue();
-        contractors.forEach(c -> c.setPassword(null));
-        return contractors;
+        return contractors.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
-    public Optional<Contractor> getContractorById(Long id) {
+    @Transactional(readOnly = true)
+    public Optional<ContractorResponseDTO> getContractorById(Long id) {
         logger.debug("Retrieving contractor by ID: {}", id);
+        return contractorRepository.findById(id)
+                .map(this::convertToDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Contractor> getContractorEntityById(Long id) {
+        logger.debug("Retrieving contractor entity by ID: {}", id);
         return contractorRepository.findById(id);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Contractor> getContractorByEmail(String email) {
         logger.debug("Retrieving contractor by email: {}", email);
         return contractorRepository.findByEmail(email);
@@ -296,16 +328,19 @@ public class ContractorService {
     /**
      * Search contractors by specialization
      */
-    public List<Contractor> getContractorsBySpecialization(String specialization) {
+    @Transactional(readOnly = true)
+    public List<ContractorResponseDTO> getContractorsBySpecialization(String specialization) {
         logger.debug("Searching contractors by specialization: {}", specialization);
         List<Contractor> contractors = contractorRepository.findBySpecialization(specialization);
-        contractors.forEach(c -> c.setPassword(null));
-        return contractors;
+        return contractors.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     /**
      * Check if contractor exists and is verified
      */
+    @Transactional(readOnly = true)
     public boolean isContractorVerified(Long id) {
         return contractorRepository.findById(id)
                 .map(contractor -> contractor.getIsVerified() &&
