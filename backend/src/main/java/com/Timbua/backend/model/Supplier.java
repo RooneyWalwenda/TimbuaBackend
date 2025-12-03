@@ -1,6 +1,7 @@
 package com.Timbua.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -34,7 +35,8 @@ public class Supplier {
     @Column(nullable = false)
     private String email;
 
-    private String password; // Added password field
+    @JsonIgnore
+    private String password;
 
     private String phone;
     private String website;
@@ -60,9 +62,20 @@ public class Supplier {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    // Materials supplied by this supplier
     @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
+    @JsonIgnoreProperties("supplier")  // Prevent circular reference
     private List<Material> materials = new ArrayList<>();
+
+    // Quotation requests where this supplier is invited
+    @ManyToMany(mappedBy = "invitedSuppliers")
+    @JsonIgnoreProperties({"invitedSuppliers", "contractor", "quotes"})  // Prevent circular reference
+    private List<QuotationRequest> quotationRequests = new ArrayList<>();
+
+    // Quotes submitted by this supplier
+    @OneToMany(mappedBy = "supplier")
+    @JsonIgnoreProperties({"supplier", "quotationRequest"})  // Prevent circular reference
+    private List<Quote> quotes;
 
     public enum Status {
         PENDING,
@@ -131,4 +144,12 @@ public class Supplier {
 
     public List<Material> getMaterials() { return materials; }
     public void setMaterials(List<Material> materials) { this.materials = materials; }
+
+    // NEW: Getter and setter for quotationRequests
+    public List<QuotationRequest> getQuotationRequests() { return quotationRequests; }
+    public void setQuotationRequests(List<QuotationRequest> quotationRequests) { this.quotationRequests = quotationRequests; }
+
+    // NEW: Getter and setter for quotes
+    public List<Quote> getQuotes() { return quotes; }
+    public void setQuotes(List<Quote> quotes) { this.quotes = quotes; }
 }
