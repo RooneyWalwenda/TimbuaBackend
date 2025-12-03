@@ -1,6 +1,9 @@
 package com.Timbua.backend.controller;
 
 import com.Timbua.backend.ResponseModel;
+import com.Timbua.backend.dto.SupplierRequestDTO;
+import com.Timbua.backend.dto.SupplierResponseDTO;
+import com.Timbua.backend.model.Material;
 import com.Timbua.backend.model.Supplier;
 import com.Timbua.backend.model.SupplierDocument;
 import com.Timbua.backend.service.SupplierService;
@@ -37,9 +40,9 @@ public class SupplierController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ResponseModel<Supplier>> register(@RequestBody Supplier supplier) {
+    public ResponseEntity<ResponseModel<SupplierResponseDTO>> register(@RequestBody SupplierRequestDTO supplierRequest) {
         try {
-            Supplier saved = supplierService.registerSupplier(supplier);
+            SupplierResponseDTO saved = supplierService.registerSupplier(supplierRequest);
             return ResponseEntity.ok(new ResponseModel<>(saved, "SUPPLIER_CREATED",
                     "Supplier added successfully and awaiting verification."));
         } catch (IllegalArgumentException ex) {
@@ -53,11 +56,14 @@ public class SupplierController {
 
     // NEW ENDPOINT: Register supplier with materials
     @PostMapping("/register-with-materials")
-    public ResponseEntity<ResponseModel<Supplier>> registerWithMaterials(@RequestBody Supplier supplier) {
+    public ResponseEntity<ResponseModel<SupplierResponseDTO>> registerWithMaterials(
+            @RequestBody RegisterWithMaterialsRequest request) {
         try {
-            Supplier saved = supplierService.registerSupplierWithMaterials(supplier);
+            SupplierResponseDTO saved = supplierService.registerSupplierWithMaterials(
+                    request.getSupplierRequest(),
+                    request.getMaterials());
             return ResponseEntity.ok(new ResponseModel<>(saved, "SUPPLIER_CREATED_WITH_MATERIALS",
-                    "Supplier registered successfully with " + saved.getMaterials().size() + " materials."));
+                    "Supplier registered successfully with " + request.getMaterials().size() + " materials."));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseModel<>(null, "VALIDATION_ERROR", ex.getMessage()));
@@ -68,21 +74,21 @@ public class SupplierController {
     }
 
     @GetMapping
-    public ResponseEntity<ResponseModel<List<Supplier>>> allSuppliers() {
-        List<Supplier> list = supplierService.getAllSuppliers();
+    public ResponseEntity<ResponseModel<List<SupplierResponseDTO>>> allSuppliers() {
+        List<SupplierResponseDTO> list = supplierService.getAllSuppliers();
         return ResponseEntity.ok(new ResponseModel<>(list, "OK", "All suppliers"));
     }
 
     @GetMapping("/verified")
-    public ResponseEntity<ResponseModel<List<Supplier>>> verifiedSuppliers() {
-        List<Supplier> list = supplierService.getVerifiedSuppliers();
+    public ResponseEntity<ResponseModel<List<SupplierResponseDTO>>> verifiedSuppliers() {
+        List<SupplierResponseDTO> list = supplierService.getVerifiedSuppliers();
         return ResponseEntity.ok(new ResponseModel<>(list, "OK", "Verified suppliers"));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ResponseModel<Supplier>> getSupplier(@PathVariable Long id) {
+    public ResponseEntity<ResponseModel<SupplierResponseDTO>> getSupplier(@PathVariable Long id) {
         try {
-            Supplier s = supplierService.getSupplier(id);
+            SupplierResponseDTO s = supplierService.getSupplier(id);
             return ResponseEntity.ok(new ResponseModel<>(s, "OK", "Supplier found"));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -91,9 +97,10 @@ public class SupplierController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ResponseModel<Supplier>> updateSupplier(@PathVariable Long id, @RequestBody Supplier supplier) {
+    public ResponseEntity<ResponseModel<SupplierResponseDTO>> updateSupplier(@PathVariable Long id,
+                                                                             @RequestBody SupplierRequestDTO supplierRequest) {
         try {
-            Supplier updated = supplierService.updateSupplier(id, supplier);
+            SupplierResponseDTO updated = supplierService.updateSupplier(id, supplierRequest);
             return ResponseEntity.ok(new ResponseModel<>(updated, "UPDATED", "Supplier updated"));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -102,10 +109,10 @@ public class SupplierController {
     }
 
     @PutMapping("/{id}/verify")
-    public ResponseEntity<ResponseModel<Supplier>> verifySupplier(@PathVariable Long id,
-                                                                  @RequestParam(name = "approve", defaultValue = "true") boolean approve) {
+    public ResponseEntity<ResponseModel<SupplierResponseDTO>> verifySupplier(@PathVariable Long id,
+                                                                             @RequestParam(name = "approve", defaultValue = "true") boolean approve) {
         try {
-            Supplier s = supplierService.verifySupplier(id, approve);
+            SupplierResponseDTO s = supplierService.verifySupplier(id, approve);
             String code = approve ? "VERIFIED" : "REJECTED";
             String msg = approve ? "Supplier verified" : "Supplier rejected";
             return ResponseEntity.ok(new ResponseModel<>(s, code, msg));
@@ -119,7 +126,9 @@ public class SupplierController {
     public ResponseEntity<ResponseModel<SupplierDocument>> uploadDocument(@PathVariable Long supplierId,
                                                                           @RequestParam("file") MultipartFile file) {
         try {
-            Supplier supplier = supplierService.getSupplier(supplierId);
+            // Get supplier entity (not DTO) for document upload
+            Supplier supplier = supplierService.getSupplierEntityById(supplierId)
+                    .orElseThrow(() -> new RuntimeException("Supplier not found"));
 
             if (file.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -157,12 +166,60 @@ public class SupplierController {
     @GetMapping("/{supplierId}/documents")
     public ResponseEntity<ResponseModel<List<SupplierDocument>>> getSupplierDocs(@PathVariable Long supplierId) {
         try {
-            supplierService.getSupplier(supplierId); // validate exists
+            // Validate supplier exists
+            supplierService.getSupplier(supplierId);
             List<SupplierDocument> docs = supplierService.getDocumentsForSupplier(supplierId);
             return ResponseEntity.ok(new ResponseModel<>(docs, "OK", "Documents list"));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ResponseModel<>(null, "NOT_FOUND", ex.getMessage()));
+        }
+    }
+
+    // === Additional Endpoints for Materials ===
+    @PostMapping("/{supplierId}/materials")
+    public ResponseEntity<ResponseModel<Material>> addMaterialToSupplier(@PathVariable Long supplierId,
+                                                                         @RequestBody Material material) {
+        try {
+            Material savedMaterial = supplierService.addMaterialToSupplier(supplierId, material);
+            return ResponseEntity.ok(new ResponseModel<>(savedMaterial, "MATERIAL_ADDED", "Material added successfully"));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseModel<>(null, "ERROR", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/{supplierId}/materials")
+    public ResponseEntity<ResponseModel<List<Material>>> getSupplierMaterials(@PathVariable Long supplierId) {
+        try {
+            List<Material> materials = supplierService.getSupplierMaterials(supplierId);
+            return ResponseEntity.ok(new ResponseModel<>(materials, "OK", "Supplier materials"));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseModel<>(null, "NOT_FOUND", ex.getMessage()));
+        }
+    }
+
+    // === Request class for register with materials ===
+    public static class RegisterWithMaterialsRequest {
+        private SupplierRequestDTO supplierRequest;
+        private List<Material> materials;
+
+        // Getters and setters
+        public SupplierRequestDTO getSupplierRequest() {
+            return supplierRequest;
+        }
+
+        public void setSupplierRequest(SupplierRequestDTO supplierRequest) {
+            this.supplierRequest = supplierRequest;
+        }
+
+        public List<Material> getMaterials() {
+            return materials;
+        }
+
+        public void setMaterials(List<Material> materials) {
+            this.materials = materials;
         }
     }
 }
